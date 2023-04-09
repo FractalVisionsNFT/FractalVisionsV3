@@ -168,7 +168,7 @@ console.log("create Auction successfull", c8list )
 const txreceipt =  await c8list.wait()
 console.log("tx receipt", txreceipt)
 //@ts-ignore
-const txargs = txreceipt.events[1].args;
+const txargs = txreceipt.events[0].args;
 console.log("tx txargs", txargs)
 //@ts-ignore
 const offerId = await txargs.offerId
@@ -176,7 +176,7 @@ const offerId = await txargs.offerId
 
 //verify Offer created
 const totalOffers = await OffersLogicInteract.totalOffers();
-console.log("total auction ", totalOffers)
+console.log("total offer", totalOffers)
 
 
 //getting auction parameter
@@ -193,7 +193,7 @@ console.log("accept Offer successfully ", acceptOffer)
 
 
 /*******************GetAllOffers within a specified range**************/
-const getAllOffers = await OffersLogicInteract.getAllOffers(offerid, 2);
+const getAllOffers = await OffersLogicInteract.getAllOffers(offerid, 0);
 console.log("getAllOffers ", getAllOffers);
 
 
