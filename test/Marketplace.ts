@@ -325,7 +325,7 @@ console.log("new plugin", removeDuplicateRows(plugin));
 
 
   it("should cancel a direct listing", async () => {
-    const { marketplaceAddress, deployer, testNft, testToken, tester1, tester2, nftMarketplace, DirectListingsLogicInteract} = await loadFixture(deployMarketplace);
+    const { marketplaceAddress, deployer, testNft, testToken, tester1, tester2, DirectListingsLogicInteract} = await loadFixture(deployMarketplace);
 
     /************************Minting and approval************* */
     const TestNft =  await ethers.getContractFactory("TestNft")
@@ -446,8 +446,9 @@ console.log("new plugin", removeDuplicateRows(plugin));
         expect(listing.status).to.eq(2);
   });
 
-  it("should make an offer for a direct listing", async () => {
-    const { marketplaceAddress, deployer, testNft, testToken, tester1, tester2,currentTime, nftMarketplace} = await loadFixture(deployMarketplace);
+
+  it("Offer", async () => {
+    const { marketplaceAddress, testNft, testToken, tester1, tester2, OffersLogicInteract} = await loadFixture(deployMarketplace);
 
     /************************Minting and approval************* */
     const TestNft =  await ethers.getContractFactory("TestNft")
@@ -456,57 +457,47 @@ console.log("new plugin", removeDuplicateRows(plugin));
     const mint =  await TestNftInteract.safeMint(tester1.address)
     const nftApproval = await TestNftInteract.connect(tester1).setApprovalForAll(marketplaceAddress, true)
 
-    const listingParams = {
-        assetContract: testNft.address,
-        tokenId: 0,
-        startTime: currentTime,
-        secondsUntilEndTime: 1 * 24 * 60 * 60, //1 day
-        quantityToList: 1,
-        currencyToAccept: testToken.address,
-        reservePricePerToken: 0,
-        buyoutPricePerToken: ethers.utils.parseEther("10"),
-        listingType: 0,
-      }
+    const amounttopay = ethers.utils.parseEther("5");
+        /********** */
+        const currentTime = (await ethers.provider.getBlock("latest")).timestamp
+       // console.log("latest ", currentTime)
 
+    const OfferParams = {
+        assetContract : testNft.address,
+        tokenId : 0,
+        quantity : 1,
+        currency : testToken.address,
+        totalPrice : amounttopay,
+        expirationTimestamp : currentTime + (1 * 24 * 60 * 60), //1 day;
+    }
 
-    const tx = await nftMarketplace.connect(tester1).createListing(listingParams);
+   const tx = await OffersLogicInteract.connect(tester2).makeOffer(OfferParams);
     const txreceipt =  await tx.wait()
     //@ts-ignore
     const txargs = txreceipt.events[0].args;
     //@ts-ignore
-    const listingId = await txargs.listingId
+    const offerId = await txargs.offerId
 
-      const listing = await nftMarketplace.listings(listingId);
-      const amounttopay = ethers.utils.parseEther("5");
-      /*********************************** */
-        const TestToken = await ethers.getContractFactory("TestToken");
-        const testToken2 = await TestToken.deploy();
-        await testToken2.deployed()
-        const testToken2Interact = testToken2.attach(testToken2.address)
+    expect(await OffersLogicInteract.totalOffers()).to.eq(1);
 
-    const mintToken = await testToken2Interact.mint(tester2.address, amounttopay)
-    const tokenApproval = await testToken2Interact.connect(tester2).approve(marketplaceAddress, amounttopay)
+    const offer = await OffersLogicInteract.getOffer(offerId);
 
 
-      // const offerParams
-       const quantityWanted = 1;
-       const currency = testToken2.address;
-       const pricePerToken = amounttopay;
-       const expirationTimestamp = listing.endTime;
-  
-      
-    await nftMarketplace.connect(tester2).offer(listingId, quantityWanted, currency, pricePerToken, expirationTimestamp);
-
-    const offer = await nftMarketplace.offers(listingId, tester2.address);
-    expect(offer.pricePerToken).to.eq(pricePerToken);
+    expect(offer.offerId).to.eq(offerId);
     expect(offer.offeror).to.eq(tester2.address);
-    expect(offer.currency).to.eq(currency);
-    expect(offer.quantityWanted).to.eq(quantityWanted);
-    expect(offer.expirationTimestamp).to.eq(expirationTimestamp);
+    expect(offer.assetContract).to.eq(testNft.address);
+    expect(offer.offeror).to.eq(tester2.address);
+    expect(offer.tokenId).to.eq(0);
+    expect(offer.quantity).to.eq(1);
+    expect(offer.totalPrice).to.eq(amounttopay);
+    expect(offer.tokenType).to.eq(0);
+    expect(offer.currency).to.eq(testToken.address);
+    expect(offer.status).to.eq(1);
+    expect(offer.expirationTimestamp).to.be.within(currentTime + (1 * 24 * 60 * 60), currentTime + (1 * 24 * 60 * 60) + 10);
   });
 
 
-  it("should accept an offer for a direct listing", async () => {
+  it("OFFER", async () => {
     const { marketplaceAddress, deployer, testNft, testToken, tester1, tester2,currentTime, nftMarketplace} = await loadFixture(deployMarketplace);
 
     /************************Minting and approval************* */
