@@ -323,7 +323,7 @@ console.log("new plugin", removeDuplicateRows(plugin));
 
 
   it("should cancel a direct listing", async () => {
-    const { marketplaceAddress, deployer, testNft, testToken, tester1, tester2,currentTime, nftMarketplace, DirectListingsLogicInteract} = await loadFixture(deployMarketplace);
+    const { marketplaceAddress, deployer, testNft, testToken, tester1, tester2, nftMarketplace, DirectListingsLogicInteract} = await loadFixture(deployMarketplace);
 
     /************************Minting and approval************* */
     const TestNft =  await ethers.getContractFactory("TestNft")
@@ -333,18 +333,22 @@ console.log("new plugin", removeDuplicateRows(plugin));
     const nftApproval = await TestNftInteract.connect(tester1).setApprovalForAll(marketplaceAddress, true)
     const price = ethers.utils.parseEther("10");
 
-    const listingParams = {
-        assetContract: testNft.address,
-        tokenId: 0,
-        startTime: currentTime,
-        secondsUntilEndTime: 1 * 24 * 60 * 60, //1 day
-        quantityToList: 1,
-        currencyToAccept: testToken.address,
-        reservePricePerToken: 0,
-        buyoutPricePerToken: price,
-        listingType: 0,
-      }
 
+    /********** */
+    const currentTime = (await ethers.provider.getBlock("latest")).timestamp
+    console.log("latest ", currentTime)
+
+    const listingParams = {
+      assetContract: testNft.address,
+      tokenId: 0,
+      quantity: 1,
+      currency: testToken.address,
+      pricePerToken: price,
+      startTimestamp: currentTime,
+      endTimestamp: currentTime + (1 * 24 * 60 * 60), //1 day
+      reserved: false
+    }
+    
 
     const tx = await DirectListingsLogicInteract.connect(tester1).createListing(listingParams);
     const txreceipt =  await tx.wait()
@@ -354,12 +358,12 @@ console.log("new plugin", removeDuplicateRows(plugin));
     const listingId = await txargs.listingId
 
     // try to cancel the listing from an address that's not the creator of the listing
-    await expect(DirectListingsLogicInteract.connect(tester2).cancelDirectListing(listingId)).to.be.revertedWith("!OWNER");
+    await expect(DirectListingsLogicInteract.connect(tester2).cancelListing(listingId)).to.be.revertedWith("Marketplace: not listing creator.");
 
-    await nftMarketplace.connect(tester1).cancelDirectListing(listingId);
+    await DirectListingsLogicInteract.connect(tester1).cancelListing(listingId);
 
-    const listing = await nftMarketplace.listings(listingId);
-    expect(listing.assetContract).to.eq("0x0000000000000000000000000000000000000000");
+    const listing = await DirectListingsLogicInteract.getListing(listingId);
+    expect(listing.status).to.eq(3);
   });
 
 
