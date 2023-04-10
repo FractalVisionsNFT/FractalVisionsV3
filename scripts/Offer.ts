@@ -105,10 +105,7 @@ async function main() {
     const uri = await nftMarketplace.callStatic.contractURI()
     console.log("contract uri: ", uri)
     const marketplaceAddress = tWProxy.address;
-
-
-
-
+    
 
     /*####################################################*/
     /************************** CreateDummy NFT and TestToken******************************** */
