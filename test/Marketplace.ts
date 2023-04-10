@@ -273,8 +273,8 @@ console.log("new plugin", removeDuplicateRows(plugin));
       quantity: 1,
       currency: testToken.address,
       pricePerToken: price,
-      startTimestamp: currentTime,
-      endTimestamp: currentTime + (1 * 24 * 60 * 60), //1 day
+      startTimestamp: currentTime + (1 * 24 * 60 * 60), //1 day
+      endTimestamp: currentTime + (5 * 24 * 60 * 60), //5 day
       reserved: false
     }
     
@@ -293,37 +293,32 @@ console.log("new plugin", removeDuplicateRows(plugin));
 
         await testToken2.deployed();
 
-      // Define the parameters for the update
-        const newQuantity = 1;
-        const newReservePrice = 0;
-        const newBuyoutPrice = newprice;
-        const newCurrency = testToken2.address;
-        const newStartTime = currentTime + 2300;
-        const newEndTime = 8600;
 
         const updatePrams = {
           assetContract: testNft.address,
           tokenId: 0,
           quantity: 1,
-          currency: testToken.address,
-          pricePerToken: price,
+          currency: testToken2.address,
+          pricePerToken: newprice,
           startTimestamp: currentTime,
           endTimestamp: currentTime + (1 * 24 * 60 * 60), //1 day
           reserved: false
         }
 
 
-
-
     await DirectListingsLogicInteract.connect(tester1).updateListing(listingId ,updatePrams);
 
     const listing = await DirectListingsLogicInteract.getListing(listingId);
-    expect(listing.quantity).to.equal(newQuantity);
-    expect(listing.reservePricePerToken).to.equal(newReservePrice);
-    expect(listing.buyoutPricePerToken).to.equal(newBuyoutPrice);
-    expect(listing.currency).to.equal(newCurrency);
-    expect(listing.startTime).to.equal(newStartTime);
-    expect(listing.endTime).to.equal(newStartTime + newEndTime);
+    expect(listing.listingId).to.eq(0);
+    expect(listing.listingCreator).to.eq(tester1.address);
+    expect(listing.assetContract).to.eq(testNft.address);
+    expect(listing.quantity).to.eq(1);
+    expect(listing.currency).to.eq(testToken2.address);
+    expect(listing.pricePerToken).to.eq(newprice);
+    expect(listing.quantity).to.eq(1);
+    expect(listing.startTimestamp).to.be.within(currentTime, currentTime +10);
+    expect(listing.endTimestamp).to.be.within(currentTime + (1 * 24 * 60 * 60), currentTime + (1 * 24 * 60 * 60) + 10);
+    expect(listing.status).to.eq(1);
   });
 
 
