@@ -249,6 +249,7 @@ console.log("new plugin", removeDuplicateRows(plugin));
     expect(listing.quantity).to.eq(1);
     expect(listing.startTimestamp).to.be.within(currentTime, currentTime +10);
     expect(listing.endTimestamp).to.be.within(currentTime + (1 * 24 * 60 * 60), currentTime + (1 * 24 * 60 * 60) + 10);
+    //status 1 is CREATED
     expect(listing.status).to.eq(1);
   });
 
@@ -318,6 +319,7 @@ console.log("new plugin", removeDuplicateRows(plugin));
     expect(listing.quantity).to.eq(1);
     expect(listing.startTimestamp).to.be.within(currentTime, currentTime +10);
     expect(listing.endTimestamp).to.be.within(currentTime + (1 * 24 * 60 * 60), currentTime + (1 * 24 * 60 * 60) + 10);
+    //status 1 is CREATED
     expect(listing.status).to.eq(1);
   });
 
@@ -363,13 +365,14 @@ console.log("new plugin", removeDuplicateRows(plugin));
     await DirectListingsLogicInteract.connect(tester1).cancelListing(listingId);
 
     const listing = await DirectListingsLogicInteract.getListing(listingId);
+    //sttatus 3 is cancelled
     expect(listing.status).to.eq(3);
   });
 
 
   /// @dev Lets an account buy a given quantity of tokens from a listing.
   it("should buy a direct listing", async () => {
-    const { marketplaceAddress, deployer, testNft, testToken, tester1, tester2,currentTime, nftMarketplace} = await loadFixture(deployMarketplace);
+    const {marketplaceAddress, deployer, testNft, testToken, tester1, tester2, nftMarketplace, DirectListingsLogicInteract} = await loadFixture(deployMarketplace);
 
     /************************Minting and approval************* */
     const TestNft =  await ethers.getContractFactory("TestNft")
@@ -379,20 +382,23 @@ console.log("new plugin", removeDuplicateRows(plugin));
     const nftApproval = await TestNftInteract.connect(tester1).setApprovalForAll(marketplaceAddress, true)
     const price = ethers.utils.parseEther("10");
 
+    /********** */
+    const currentTime = (await ethers.provider.getBlock("latest")).timestamp
+    console.log("latest ", currentTime)
+
     const listingParams = {
-        assetContract: testNft.address,
-        tokenId: 0,
-        startTime: currentTime,
-        secondsUntilEndTime: 1 * 24 * 60 * 60, //1 day
-        quantityToList: 1,
-        currencyToAccept: testToken.address,
-        reservePricePerToken: 0,
-        buyoutPricePerToken: price,
-        listingType: 0,
-      }
+      assetContract: testNft.address,
+      tokenId: 0,
+      quantity: 1,
+      currency: testToken.address,
+      pricePerToken: price,
+      startTimestamp: currentTime,
+      endTimestamp: currentTime + (1 * 24 * 60 * 60), //1 day
+      reserved: false
+    }
+    
 
-
-    const tx = await nftMarketplace.connect(tester1).createListing(listingParams);
+    const tx = await DirectListingsLogicInteract.connect(tester1).createListing(listingParams);
     const txreceipt =  await tx.wait()
     //@ts-ignore
     const txargs = txreceipt.events[0].args;
@@ -415,7 +421,7 @@ console.log("new plugin", removeDuplicateRows(plugin));
       const totalPrice = price; 
 
 
-    await nftMarketplace.connect(tester2).buy(listingId, buyFor,quantityToBuy, currency, totalPrice);
+    await DirectListingsLogicInteract.connect(tester2).buyFromListing(listingId, buyFor,quantityToBuy, currency, totalPrice);
 
    
       //expect that the buyer get the nft
@@ -432,10 +438,12 @@ console.log("new plugin", removeDuplicateRows(plugin));
     const platformget =  ethers.utils.parseEther("0.5")
     expect(await TestTokenInteract.balanceOf(deployer.address)).to.be.equal(platformget)
 
-    const listing = await nftMarketplace.listings(listingId);
+    const listing = await DirectListingsLogicInteract.getListing(listingId);
 
     //check that the listing isn't available again
     expect(listing.quantity).to.eq(0);
+        //sttatus 3 is cancelled
+        expect(listing.status).to.eq(2);
   });
 
   it("should make an offer for a direct listing", async () => {
