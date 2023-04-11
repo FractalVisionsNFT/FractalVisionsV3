@@ -447,6 +447,11 @@ console.log("new plugin", removeDuplicateRows(plugin));
   });
 
 
+
+
+
+//----------------------------------OFFER Test--------------------------------------//
+
   it("Offer", async () => {
     const { marketplaceAddress, testNft, testToken, tester1, tester2, OffersLogicInteract} = await loadFixture(deployMarketplace);
 
@@ -543,7 +548,7 @@ console.log("new plugin", removeDuplicateRows(plugin));
     
     const offerDetails = await OffersLogicInteract.getOffer(offerId);
 
-    
+
     expect(offerDetails.status).to.eq(2);
 
 
@@ -560,6 +565,60 @@ console.log("new plugin", removeDuplicateRows(plugin));
 
     //expect that the buyer get the nft
    expect(await TestNftInteract.ownerOf(0)).to.be.equal(tester2.address)
+  });
+
+
+  it("cancel an OFFER", async () => {
+    const { marketplaceAddress, deployer, testNft, testToken, tester1, tester2, OffersLogicInteract} = await loadFixture(deployMarketplace);
+
+    /************************Minting and approval************* */
+    const TestNft =  await ethers.getContractFactory("TestNft")
+    const TestNftInteract = TestNft.attach(testNft.address)
+
+    const mint =  await TestNftInteract.safeMint(tester1.address)
+    const nftApproval = await TestNftInteract.connect(tester1).setApprovalForAll(marketplaceAddress, true)
+
+    const TestToken = await ethers.getContractFactory("TestToken");
+    const TestTokenInteract = TestToken.attach(testToken.address)
+
+
+    const amounttopay = ethers.utils.parseEther("5");
+        /********** */
+        const currentTime = (await ethers.provider.getBlock("latest")).timestamp
+       // console.log("latest ", currentTime)
+
+    const OfferParams = {
+        assetContract : testNft.address,
+        tokenId : 0,
+        quantity : 1,
+        currency : testToken.address,
+        totalPrice : amounttopay,
+        expirationTimestamp : currentTime + (1 * 24 * 60 * 60), //1 day;
+    }
+
+   const tx = await OffersLogicInteract.connect(tester2).makeOffer(OfferParams);
+    const txreceipt =  await tx.wait()
+    //@ts-ignore
+    const txargs = txreceipt.events[0].args;
+    //@ts-ignore
+    const offerId = await txargs.offerId
+
+    expect(await OffersLogicInteract.totalOffers()).to.eq(1);
+
+    const offer = await OffersLogicInteract.getOffer(offerId);
+
+    expect(offer.status).to.eq(1);
+
+    // try to accept the offfer from an address that's not the owner of the nft
+    await expect(OffersLogicInteract.connect(deployer).cancelOffer(offerId)).to.be.reverted;
+
+    await OffersLogicInteract.connect(tester2).cancelOffer(offerId);
+    
+    const offerDetails = await OffersLogicInteract.getOffer(offerId);
+
+
+    expect(offerDetails.status).to.eq(3);
+
   });
 
 
