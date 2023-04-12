@@ -642,7 +642,7 @@ const AuctionParameters = {
   currency : testToken.address,
   minimumBidAmount : minbid,
   buyoutBidAmount : buyoutbid,
-  timeBufferInSeconds : currentTime + (15 * 60), //15 minute
+  timeBufferInSeconds : 15 * 60, //15 minute
   bidBufferBps : 500, //5% increase to previous bids
   startTimestamp : currentTime,
   endTimestamp : currentTime + (5 * 24 * 60 * 60), //1 day;
@@ -669,7 +669,7 @@ const auctionId = await txargs.auctionId
   expect(auction.currency).to.eq(testToken.address);
   expect(auction.minimumBidAmount).to.eq(minbid);
   expect(auction.buyoutBidAmount).to.eq(buyoutbid);
-  expect(auction.timeBufferInSeconds).to.eq(currentTime + (15 * 60));
+  expect(auction.timeBufferInSeconds).to.eq(15 * 60);
   expect(auction.bidBufferBps).to.eq(500);
   expect(auction.startTimestamp).to.eq(currentTime);
   expect(auction.endTimestamp).to.eq(currentTime + (5 * 24 * 60 * 60));
@@ -680,7 +680,7 @@ const auctionId = await txargs.auctionId
 
 
 it("multiple bid should be make(test for bid)", async () => {
-  const { marketplaceAddress, deployer, testNft, testToken, tester1, tester2, nftMarketplace, tester3, EnglishAuctionsLogicInteract} = await loadFixture(deployMarketplace);
+  const { marketplaceAddress, deployer, testNft, testToken, tester1, tester2, tester3, EnglishAuctionsLogicInteract} = await loadFixture(deployMarketplace);
 
  /************************Minting and approval************* */
  const TestNft =  await ethers.getContractFactory("TestNft")
@@ -708,7 +708,7 @@ const AuctionParameters = {
  currency : testToken.address,
  minimumBidAmount : minbid,
  buyoutBidAmount : buyoutbid,
- timeBufferInSeconds : currentTime + (15 * 60), //15 minute
+ timeBufferInSeconds : 15 * 60, //15 minute
  bidBufferBps : 500, //5% increase to previous bids
  startTimestamp : currentTime,
  endTimestamp : currentTime + (5 * 24 * 60 * 60), //5 day;
@@ -760,9 +760,7 @@ const auctionId = await txargs.auctionId
      expect(bid2._bidAmount).to.eq(newbidamt);
 
       //warp time to the end of auction
-     await helpers.time.increase((currentTime + (5 * 24 * 60 * 60) + 902));
-
-     console.log("end time", auction.endTimestamp, ((currentTime + 5 * 24 * 60 * 60) + 900))
+     await helpers.time.increase(currentTime + (5 * 24 * 60 * 60));
 
      expect(await EnglishAuctionsLogicInteract.isAuctionExpired(auctionId)).to.eq(false);
      expect(await EnglishAuctionsLogicInteract.callStatic.totalAuctions()).to.eq(1)
@@ -824,7 +822,7 @@ it("multiple bid shouldn't be made(test for buyout)", async () => {
     currency : testToken.address,
     minimumBidAmount : minbid,
     buyoutBidAmount : buyoutbid,
-    timeBufferInSeconds : currentTime + (15 * 60), //15 minute
+    timeBufferInSeconds : 15 * 60, //15 minute
     bidBufferBps : 500, //5% increase to previous bids
     startTimestamp : currentTime,
     endTimestamp : currentTime + (5 * 24 * 60 * 60), //5 day;
@@ -922,7 +920,7 @@ it("should close an auction listing(if auction has not started and revert all bi
   currency : testToken.address,
   minimumBidAmount : minbid,
   buyoutBidAmount : buyoutbid,
-  timeBufferInSeconds : currentTime + (15 * 60), //15 minute
+  timeBufferInSeconds : 15 * 60, //15 minute
   bidBufferBps : 500, //5% increase to previous bids
   startTimestamp : currentTime + (45 * 60), //auction start in 45 minute
   endTimestamp : currentTime + (5 * 24 * 60 * 60), //5 day;
@@ -987,7 +985,7 @@ it("should close an auction listing(if auction has not started and revert all bi
     currency : testToken.address,
     minimumBidAmount : minbid,
     buyoutBidAmount : buyoutbid,
-    timeBufferInSeconds : currentTime + (15 * 60), //15 minute
+    timeBufferInSeconds : 15 * 60, //15 minute
     bidBufferBps : 500, //5% increase to previous bids
     startTimestamp : currentTime, 
     endTimestamp : currentTime + (5 * 24 * 60 * 60), //5 day;
@@ -1022,7 +1020,6 @@ it("should close an auction listing(if auction has not started and revert all bi
     const auction = await EnglishAuctionsLogicInteract.getAuction(auctionId);
     //status 3 means cancelled
     expect(auction.status).to.eq(3);
-      
-  
+
   });
 });
