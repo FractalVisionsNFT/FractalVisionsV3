@@ -776,7 +776,6 @@ const auctionId = await txargs.auctionId
       
      //Transfer of the nft to the highest bidder
      await EnglishAuctionsLogicInteract.connect(tester1).collectAuctionTokens(auctionId)
-     console.log("auction status", auction.status)
      expect(await TestNftInteract.callStatic.balanceOf(tester3.address)).to.eq(1);
      expect(await TestNftInteract.callStatic.ownerOf(0)).to.be.equal(tester3.address)
 
@@ -894,7 +893,7 @@ it("multiple bid shouldn't be made(test for buyout)", async () => {
 
 
 it("should close an auction listing(if auction has not started and revert all bids afterward)", async () => {
-  const { marketplaceAddress, deployer, testNft, testToken, tester1, tester2, tester3, EnglishAuctionsLogicInteract} = await loadFixture(deployMarketplace);
+  const { marketplaceAddress, testNft, testToken, tester1, tester2, tester3, EnglishAuctionsLogicInteract} = await loadFixture(deployMarketplace);
 
   /************************Minting and approval************* */
   const TestNft =  await ethers.getContractFactory("TestNft")
@@ -910,6 +909,7 @@ it("should close an auction listing(if auction has not started and revert all bi
   const price = ethers.utils.parseEther("10");
 
   const currentTime = (await ethers.provider.getBlock("latest")).timestamp
+
   const minbid =  ethers.utils.parseEther("1")
   const buyoutbid =  ethers.utils.parseEther("20")
   // console.log("latest ", currentTime)
@@ -924,7 +924,7 @@ it("should close an auction listing(if auction has not started and revert all bi
   buyoutBidAmount : buyoutbid,
   timeBufferInSeconds : currentTime + (15 * 60), //15 minute
   bidBufferBps : 500, //5% increase to previous bids
-  startTimestamp : currentTime,
+  startTimestamp : currentTime + (45 * 60), //auction start in 45 minute
   endTimestamp : currentTime + (5 * 24 * 60 * 60), //5 day;
   }
   const tx = await EnglishAuctionsLogicInteract.connect(tester1).createAuction(AuctionParameters);
@@ -938,93 +938,73 @@ it("should close an auction listing(if auction has not started and revert all bi
 
   expect(await EnglishAuctionsLogicInteract.totalAuctions()).to.eq(1)
 
-  const auction = await EnglishAuctionsLogicInteract.getAuction(auctionId);
-
   //it should revert cos the auction tester2 is not the auction creator
   await expect( EnglishAuctionsLogicInteract.connect(tester2).cancelAuction(auctionId)).to.be.reverted;
 
   const cancelAuction = await EnglishAuctionsLogicInteract.connect(tester1).cancelAuction(auctionId);
 
+  //should revert cos auction has been cancelled so no bidding is allowed
+  await expect(EnglishAuctionsLogicInteract.connect(tester3).bidInAuction(auctionId, minbid)).to.be.revertedWith("Marketplace: invalid auction.");
+
+  //nft is sent back to the auction creator
+  expect(await TestNftInteract.callStatic.balanceOf(tester1.address)).to.eq(1);
+  expect(await TestNftInteract.callStatic.ownerOf(0)).to.be.equal(tester1.address)
 
 
+  const auction = await EnglishAuctionsLogicInteract.getAuction(auctionId);
+  //status 3 means cancelled
+  expect(auction.status).to.eq(3);
 
   });
 
   it("should close an auction listing(if auction has started and has no bids while reverting all bids afterward)", async () => {
-    const { marketplaceAddress, deployer, testNft, testToken, tester1, tester2,tester3,currentTime, nftMarketplace} = await loadFixture(deployMarketplace);
+    const { marketplaceAddress, deployer, testNft, testToken, tester1, tester2, tester3, EnglishAuctionsLogicInteract} = await loadFixture(deployMarketplace);
 
- /************************Minting and approval************* */
- const TestNft =  await ethers.getContractFactory("TestNft")
- const TestNftInteract = TestNft.attach(testNft.address)
+    /************************Minting and approval************* */
+    const TestNft =  await ethers.getContractFactory("TestNft")
+    const TestNftInteract = TestNft.attach(testNft.address)
+  
+    const TestToken = await ethers.getContractFactory("TestToken");
+    const TestTokenInteract = TestToken.attach(testToken.address)
+    const amt = ethers.utils.parseEther("40");
+    const mintToken2 = await TestTokenInteract.mint(tester3.address, amt)
+  
+    const mint =  await TestNftInteract.safeMint(tester1.address)
+    const nftApproval = await TestNftInteract.connect(tester1).setApprovalForAll(marketplaceAddress, true)
+    const price = ethers.utils.parseEther("10");
+  
+    const currentTime = (await ethers.provider.getBlock("latest")).timestamp
+  
+    const minbid =  ethers.utils.parseEther("1")
+    const buyoutbid =  ethers.utils.parseEther("20")
+    // console.log("latest ", currentTime)
+  
+  
+    const AuctionParameters = {
+    assetContract : testNft.address,
+    tokenId : 0,
+    quantity : 1,
+    currency : testToken.address,
+    minimumBidAmount : minbid,
+    buyoutBidAmount : buyoutbid,
+    timeBufferInSeconds : currentTime + (15 * 60), //15 minute
+    bidBufferBps : 500, //5% increase to previous bids
+    startTimestamp : currentTime, 
+    endTimestamp : currentTime + (5 * 24 * 60 * 60), //5 day;
+    }
+    const tx = await EnglishAuctionsLogicInteract.connect(tester1).createAuction(AuctionParameters);
+    const txreceipt =  await tx.wait()
+    //@ts-ignore
+    const txargs = txreceipt.events[1].args;
+    //console.log("tx args", txargs)
+    //@ts-ignore
+    const auctionId = await txargs.auctionId
+    //console.log("auctionid", auctionId)
+  
+    expect(await EnglishAuctionsLogicInteract.totalAuctions()).to.eq(1)
 
- const mint =  await TestNftInteract.safeMint(tester1.address)
- const nftApproval = await TestNftInteract.connect(tester1).setApprovalForAll(marketplaceAddress, true)
-
- /*************** */
-     /******************** */
-     const amt = ethers.utils.parseEther("40")
-     const TestToken = await ethers.getContractFactory("TestToken");
-     const TestTokenInteract = TestToken.attach(testToken.address)
-
-   //mimt
-     await TestTokenInteract.mint(tester3.address, amt)
-     const mintToken = await TestTokenInteract.mint(tester2.address, amt)
-
-     //Approve
-     await TestTokenInteract.connect(tester3).approve(marketplaceAddress, amt)
-     const tokenApproval = await TestTokenInteract.connect(tester2).approve(marketplaceAddress, amt)
-
- const listingParams = {
-     assetContract: testNft.address,
-     tokenId: 0,
-     //start in the future
-     startTime: currentTime,
-     secondsUntilEndTime: 1 * 24 * 60 * 60, //1 day
-     quantityToList: 1,
-     currencyToAccept: testToken.address,
-     reservePricePerToken: ethers.utils.parseEther("0.5"),
-     buyoutPricePerToken: ethers.utils.parseEther("20"),
-     listingType: 1,
-   }
-
-
- const tx = await nftMarketplace.connect(tester1).createListing(listingParams);
- const txreceipt =  await tx.wait()
- //@ts-ignore
- const txargs = txreceipt.events[1].args;
- //@ts-ignore
- const listingId = await txargs.listingId
-
-
- const listing = await nftMarketplace.listings(listingId);
-
-    // advance time by one hour and mine a new block
-    await helpers.time.increase(3600);
-
-   //*************It should not revert if the auction has not started*********//
-   //should revert cos tester2 is not the lister
-   await expect(nftMarketplace.connect(tester2).closeAuction(listingId, listing.tokenOwner)).to.be.revertedWith("caller is not the listing creator.");
-
-   //shouldn't revert cos this is the lister
-   expect(await nftMarketplace.connect(tester1).closeAuction(listingId, listing.tokenOwner)).not.to.be.reverted;
-
-
-    // const offerParams
-    const quantityWanted = listing.quantity;
-    const currency = listing.currency;
-    const pricePerToken = ethers.utils.parseEther("20");
-    const expirationTimestamp = listing.endTime;
-
-  //revert all bid
-  await expect(nftMarketplace.connect(tester2).offer(listingId, quantityWanted, currency, pricePerToken, expirationTimestamp)).to.be.revertedWith("DNE");
-
-  const listingafter = await nftMarketplace.listings(listingId);
-  //asset is null
-  expect(listingafter.assetContract).to.eq(ethers.constants.AddressZero);
-  expect(listingafter.quantity).to.eq(0);
-
-  const offer = await nftMarketplace.winningBid(listingId);
-  expect(offer.offeror).to.eq(ethers.constants.AddressZero);
+    //warp time so auction has started
+    await helpers.time.increase(currentTime + (45 * 60 ));
   
   });
 });
