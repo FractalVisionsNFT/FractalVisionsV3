@@ -1005,6 +1005,24 @@ it("should close an auction listing(if auction has not started and revert all bi
 
     //warp time so auction has started
     await helpers.time.increase(currentTime + (45 * 60 ));
+
+    //it should revert cos the auction tester2 is not the auction creator
+    await expect( EnglishAuctionsLogicInteract.connect(tester2).cancelAuction(auctionId)).to.be.reverted;
+
+    const cancelAuction = await EnglishAuctionsLogicInteract.connect(tester1).cancelAuction(auctionId);
+  
+    //should revert cos auction has been cancelled so no bidding is allowed
+    await expect(EnglishAuctionsLogicInteract.connect(tester3).bidInAuction(auctionId, minbid)).to.be.revertedWith("Marketplace: invalid auction.");
+  
+    //nft is sent back to the auction creator
+    expect(await TestNftInteract.callStatic.balanceOf(tester1.address)).to.eq(1);
+    expect(await TestNftInteract.callStatic.ownerOf(0)).to.be.equal(tester1.address)
+  
+  
+    const auction = await EnglishAuctionsLogicInteract.getAuction(auctionId);
+    //status 3 means cancelled
+    expect(auction.status).to.eq(3);
+      
   
   });
 });
