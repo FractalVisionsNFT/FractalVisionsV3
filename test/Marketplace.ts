@@ -172,7 +172,7 @@ await TestTokenInteract.connect(tester3).approve(marketplaceAddress, amt)
  //console.log("token approval ", tokenApproval)
 
 
-  return {marketplaceAddress, DirectListingsLogic, nftMarketplace, EnglishAuctionsLogic,  OffersLogic, contractURi, platformFee, deployer, tester1, tester2, tester3, testNft, testToken, DirectListingsLogicInteract,EnglishAuctionsLogicInteract,OffersLogicInteract };
+  return {marketplaceAddress, DirectListingsLogic, nftMarketplace, EnglishAuctionsLogic,  OffersLogic, contractURi, platformFee, deployer, tester1, tester2, tester3, testNft, testToken, DirectListingsLogicInteract,EnglishAuctionsLogicInteract,OffersLogicInteract, ByteGetterInteract};
 
   };
 
@@ -617,7 +617,6 @@ await TestTokenInteract.connect(tester3).approve(marketplaceAddress, amt)
 
 //----------------------------------Auction Test--------------------------------------//
 
-
 it("should create an Auction", async () => {
   const { marketplaceAddress, deployer, testNft, testToken, tester1, tester2, EnglishAuctionsLogicInteract} = await loadFixture(deployMarketplace);
 
@@ -648,7 +647,9 @@ const AuctionParameters = {
   endTimestamp : currentTime + (5 * 24 * 60 * 60), //1 day;
 }
 
+//it should revert if you aren't the owner of the token to be listed
 await expect( EnglishAuctionsLogicInteract.connect(tester2).createAuction(AuctionParameters)).to.be.revertedWith("ERC721: transfer from incorrect owner")
+
 const tx = await EnglishAuctionsLogicInteract.connect(tester1).createAuction(AuctionParameters);
 const txreceipt =  await tx.wait()
 //@ts-ignore
@@ -673,7 +674,78 @@ const auctionId = await txargs.auctionId
   expect(auction.bidBufferBps).to.eq(500);
   expect(auction.startTimestamp).to.eq(currentTime);
   expect(auction.endTimestamp).to.eq(currentTime + (5 * 24 * 60 * 60));
-  
+  expect(auction.tokenType).to.eq(0);
+  expect(auction.status).to.eq(1);
+});
+
+it("should revert if Lister role is activated and a lister doesnt have a lister role", async () => {
+  const { marketplaceAddress, deployer, testNft, testToken, tester1, tester2, EnglishAuctionsLogicInteract, ByteGetterInteract, nftMarketplace} = await loadFixture(deployMarketplace);
+
+  /************************Minting and approval************* */
+  const TestNft =  await ethers.getContractFactory("TestNft")
+  const TestNftInteract = TestNft.attach(testNft.address)
+
+  const mint =  await TestNftInteract.safeMint(tester1.address)
+  const nftApproval = await TestNftInteract.connect(tester1).setApprovalForAll(marketplaceAddress, true)
+  const price = ethers.utils.parseEther("10");
+
+  const currentTime = (await ethers.provider.getBlock("latest")).timestamp
+  const minbid =  ethers.utils.parseEther("1")
+  const buyoutbid =  ethers.utils.parseEther("20")
+  // console.log("latest ", currentTime)
+
+  //******************setup Lister role*************************//
+  //get hash of lister
+const listerHash = await ByteGetterInteract.callStatic.getListerHash()
+console.log("lister hash", listerHash);
+
+//lister role can be activated by turning it on and off
+//revoking adrress(0) will turn the lister role on(users will need to get lister role before they can list)
+//granting address(0) lister role will turn the lisster role off(anybody can list on the marketplace)
+const revokeListerRole = await nftMarketplace.revokeRole(listerHash, "0x0000000000000000000000000000000000000000")
+console.log("revoke", revokeListerRole);
+
+
+const AuctionParameters = {
+  assetContract : testNft.address,
+  tokenId : 0,
+  quantity : 1,
+  currency : testToken.address,
+  minimumBidAmount : minbid,
+  buyoutBidAmount : buyoutbid,
+  timeBufferInSeconds : 15 * 60, //15 minute
+  bidBufferBps : 500, //5% increase to previous bids
+  startTimestamp : currentTime,
+  endTimestamp : currentTime + (5 * 24 * 60 * 60), //1 day;
+}
+
+//it should revert cos lister role is on and lister1 doesn't have the lister role
+await expect( EnglishAuctionsLogicInteract.connect(tester1).createAuction(AuctionParameters)).to.be.revertedWith('!LISTER_ROLE')
+
+const tx = await EnglishAuctionsLogicInteract.connect(tester1).createAuction(AuctionParameters);
+const txreceipt =  await tx.wait()
+//@ts-ignore
+const txargs = txreceipt.events[1].args;
+//console.log("tx args", txargs)
+//@ts-ignore
+const auctionId = await txargs.auctionId
+//console.log("auctionid", auctionId)
+
+  expect(await EnglishAuctionsLogicInteract.totalAuctions()).to.eq(1)
+
+  const auction = await EnglishAuctionsLogicInteract.getAuction(auctionId);
+  expect(auction.auctionId).to.eq(auctionId);
+  expect(auction.auctionCreator).to.eq(tester1.address);
+  expect(auction.assetContract).to.eq(testNft.address);
+  expect(auction.tokenId).to.eq(0);
+  expect(auction.quantity).to.eq(1);
+  expect(auction.currency).to.eq(testToken.address);
+  expect(auction.minimumBidAmount).to.eq(minbid);
+  expect(auction.buyoutBidAmount).to.eq(buyoutbid);
+  expect(auction.timeBufferInSeconds).to.eq(15 * 60);
+  expect(auction.bidBufferBps).to.eq(500);
+  expect(auction.startTimestamp).to.eq(currentTime);
+  expect(auction.endTimestamp).to.eq(currentTime + (5 * 24 * 60 * 60));
   expect(auction.tokenType).to.eq(0);
   expect(auction.status).to.eq(1);
 });
@@ -788,8 +860,6 @@ const auctionId = await txargs.auctionId
      //get the money paid(2 -(5% of 2)) lister bal
      const listerbal = ethers.utils.parseEther("1.9")
      expect(await TestTokenInteract.connect(deployer).balanceOf(tester1.address)).to.be.equal(listerbal)
-
-
 });
 
 
