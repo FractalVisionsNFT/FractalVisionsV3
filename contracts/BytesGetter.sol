@@ -26,6 +26,14 @@ function forwarders(address forwarder) public pure returns (address[] memory) {
     return _forwarders;
 }
 
+function getListerHash() external pure returns(bytes32){
+    return keccak256("LISTER_ROLE");
+}
+
+function getAssetHash() external pure returns(bytes32){
+    return keccak256("ASSET_ROLE");
+}
+
     // //        deployContractProxy(
     //     "Marketplace",
     //     abi.encodeCall(

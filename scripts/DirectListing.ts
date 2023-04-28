@@ -105,7 +105,27 @@ async function main() {
     const marketplaceAddress = tWProxy.address;
 
 
+//setup role
+const listerHash = await ByteGetterInteract.callStatic.getListerHash()
+const assetHash = await ByteGetterInteract.callStatic.getAssetHash()
+console.log("lister hash", listerHash);
 
+const revokeListerRole = await nftMarketplace.revokeRole(listerHash, "0x0000000000000000000000000000000000000000")
+console.log("revoke", revokeListerRole);
+
+const revokeAssetRole = await nftMarketplace.revokeRole(assetHash, "0x0000000000000000000000000000000000000000")
+console.log("revoke", revokeAssetRole);
+                                                                //0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+const getRoleAdmin = await nftMarketplace.getRoleAdmin(listerHash)
+console.log("get role admin", getRoleAdmin)
+
+// const getRoleAdminAsset = await nftMarketplace.getRoleAdmin(assetHash)
+// console.log("get role admin getRoleAdminAsset", getRoleAdminAsset)
+
+
+
+const listerrole = await nftMarketplace.grantRole(listerHash, tester1.address)
+console.log(listerrole)
 
 
     /*####################################################*/
@@ -127,6 +147,9 @@ await testToken.deployed();
 
 console.log(`testToken contract is deployed to ${testToken.address}`);
 
+
+const assetrole = await nftMarketplace.grantRole(assetHash, testNft.address)
+console.log("assetrole role ", assetrole)
 
 /************************Minting and approval************* */
 const TestNftInteract = TestNft.attach(testNft.address)
@@ -212,6 +235,7 @@ const nftowner = await TestNftInteract.connect(tester2).callStatic.ownerOf(0)
 console.log("Platfrom Fee Recipient Balance ", platformFeeRecipientbal)
 console.log("NFT balance of tester 2: ", nftbal)
 console.log("nft owner of token id 0: ", nftowner)
+
 
 }
 
