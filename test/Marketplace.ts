@@ -721,35 +721,7 @@ const AuctionParameters = {
 
 //it should revert cos lister role is on and lister1 doesn't have the lister role
 await expect( EnglishAuctionsLogicInteract.connect(tester1).createAuction(AuctionParameters)).to.be.revertedWith('!LISTER_ROLE')
-
-const tx = await EnglishAuctionsLogicInteract.connect(tester1).createAuction(AuctionParameters);
-const txreceipt =  await tx.wait()
-//@ts-ignore
-const txargs = txreceipt.events[1].args;
-//console.log("tx args", txargs)
-//@ts-ignore
-const auctionId = await txargs.auctionId
-//console.log("auctionid", auctionId)
-
-  expect(await EnglishAuctionsLogicInteract.totalAuctions()).to.eq(1)
-
-  const auction = await EnglishAuctionsLogicInteract.getAuction(auctionId);
-  expect(auction.auctionId).to.eq(auctionId);
-  expect(auction.auctionCreator).to.eq(tester1.address);
-  expect(auction.assetContract).to.eq(testNft.address);
-  expect(auction.tokenId).to.eq(0);
-  expect(auction.quantity).to.eq(1);
-  expect(auction.currency).to.eq(testToken.address);
-  expect(auction.minimumBidAmount).to.eq(minbid);
-  expect(auction.buyoutBidAmount).to.eq(buyoutbid);
-  expect(auction.timeBufferInSeconds).to.eq(15 * 60);
-  expect(auction.bidBufferBps).to.eq(500);
-  expect(auction.startTimestamp).to.eq(currentTime);
-  expect(auction.endTimestamp).to.eq(currentTime + (5 * 24 * 60 * 60));
-  expect(auction.tokenType).to.eq(0);
-  expect(auction.status).to.eq(1);
 });
-
 
 it("multiple bid should be make(test for bid)", async () => {
   const { marketplaceAddress, deployer, testNft, testToken, tester1, tester2, tester3, EnglishAuctionsLogicInteract} = await loadFixture(deployMarketplace);
