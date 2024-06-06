@@ -1,0 +1,16 @@
+{
+  "devDependencies": {
+    "@nomicfoundation/hardhat-foundry": "^1.1.2",
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "hardhat": "^2.22.4"
+  },
+  "dependencies": {
+    "@0xsequence/create3": "github:0xsequence/create3",
+    "@openzeppelin/contracts": "^4.9.3",
+    "@thirdweb-dev/dynamic-contracts": "^1.2.5",
+    "install": "^0.13.0",
+    "npm": "^10.8.0"
+  }
+}
+
+

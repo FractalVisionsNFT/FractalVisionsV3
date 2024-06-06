@@ -1,0 +1,261 @@
+// SPDX-License-Identifier: Apache-2.0
+pragma solidity ^0.8.11;
+
+//import "@std/Test.sol";
+// import "lib/ds-test/src/test.sol";
+import "lib/forge-std/src/Test.sol";
+
+// import "./Console.sol";
+import { Wallet } from "./Wallet.sol";
+//import "./ChainlinkVRF.sol";
+import { WETH9 } from "contracts/mocks/WETH9.sol";
+import { MockERC20, ERC20, IERC20 } from "contracts/mocks/MockERC20.sol";
+import { MockERC721, IERC721 } from "contracts/mocks/MockERC721.sol";
+import { MockERC1155, IERC1155 } from "contracts/mocks/MockERC1155.sol";
+import { Forwarder } from "contracts/infra/forwarder/Forwarder.sol";
+// import { ForwarderEOAOnly } from "contracts/infra/forwarder/ForwarderEOAOnly.sol";
+import { TWRegistry } from "contracts/infra/TWRegistry.sol";
+import { TWFactory } from "contracts/infra/TWFactory.sol";
+import { ContractPublisher } from "contracts/infra/ContractPublisher.sol";
+import { IContractPublisher } from "contracts/infra/interface/IContractPublisher.sol";
+import { Mock, MockContract } from "contracts/mocks/Mock.sol";
+import { MockContractPublisher } from "contracts/mocks/MockContractPublisher.sol";
+import { Permissions } from "contracts/extension/Permissions.sol";
+import { PermissionsEnumerable } from "contracts/extension/PermissionsEnumerable.sol";
+import { ERC1155Holder, IERC1155Receiver } from "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
+import { ERC721Holder, IERC721Receiver } from "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
+import { Clones } from "@openzeppelin/contracts/proxy/Clones.sol";
+import { Strings } from "contracts/lib/Strings.sol";
+import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
+
+abstract contract BaseTest is Test {
+    string public constant NAME = "NAME";
+    string public constant SYMBOL = "SYMBOL";
+    string public constant CONTRACT_URI = "CONTRACT_URI";
+    address public constant NATIVE_TOKEN = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+
+    MockERC20 public erc20;
+    MockERC721 public erc721;
+    MockERC1155 public erc1155;
+    WETH9 public weth;
+
+    address public forwarder;
+    address public eoaForwarder;
+    address public registry;
+    address public factory;
+    address public fee;
+
+    address public factoryAdmin = address(0x10000);
+    address public deployer = address(0x20000);
+    address public saleRecipient = address(0x30000);
+    address public royaltyRecipient = address(0x30001);
+    address public platformFeeRecipient = address(0x30002);
+    uint128 public royaltyBps = 500; // 5%
+    uint128 public platformFeeBps = 500; // 5%
+    uint256 public constant MAX_BPS = 10_000; // 100%
+
+    uint256 public privateKey = 1234;
+    address public signer;
+
+    Wallet internal airdropTokenOwner;
+    // airdrop-claimable inputs -- over
+
+    mapping(bytes32 => address) public contracts;
+
+    function setUp() public virtual {
+        /// setup main factory contracts. registry, fee, factory.
+        vm.startPrank(factoryAdmin);
+
+        signer = vm.addr(privateKey);
+
+        erc20 = new MockERC20();
+        //erc20Aux = new MockERC20();
+        erc721 = new MockERC721();
+        erc1155 = new MockERC1155();
+        weth = new WETH9();
+        forwarder = address(new Forwarder());
+        //eoaForwarder = address(new ForwarderEOAOnly());
+        registry = address(new TWRegistry(forwarder));
+        factory = address(new TWFactory(forwarder, registry));
+        //contractPublisher = address(new ContractPublisher(factoryAdmin, forwarder, new MockContractPublisher()));
+        // linkToken = address(new Link());
+        // vrfV2Wrapper = address(new VRFV2Wrapper());
+        TWRegistry(registry).grantRole(TWRegistry(registry).OPERATOR_ROLE(), factory);
+       // TWRegistry(registry).grantRole(TWRegistry(registry).OPERATOR_ROLE(), contractPublisher);
+
+        // TWFactory(factory).addImplementation(address(new TokenERC20()));
+        // TWFactory(factory).addImplementation(address(new TokenERC721()));
+        // TWFactory(factory).addImplementation(address(new TokenERC1155()));
+        TWFactory(factory).addImplementation(address(new MockContract(bytes32("Marketplace"), 1)));
+       // TWFactory(factory).addImplementation(address(new Marketplace(address(weth))));
+        // TWFactory(factory).addImplementation(address(new Split()));
+        // TWFactory(factory).addImplementation(address(new Multiwrap(address(weth))));
+        // TWFactory(factory).addImplementation(address(new MockContract(bytes32("Pack"), 1)));
+
+        // TWFactory(factory).addImplementation(
+        //     address(new PackVRFDirect(address(weth), eoaForwarder, linkToken, vrfV2Wrapper))
+        // );
+        // TWFactory(factory).addImplementation(address(new Pack(address(weth))));
+        // TWFactory(factory).addImplementation(address(new VoteERC20()));
+        // TWFactory(factory).addImplementation(address(new MockContract(bytes32("EditionStake"), 1)));
+
+        // TWFactory(factory).addImplementation(address(new TokenStake(address(weth))));
+        vm.stopPrank();
+
+        // setup airdrop logic
+        //setupAirdropClaimable();
+
+        /// deploy proxy for tests
+        // deployContractProxy(
+        //     "TokenERC20",
+        //     abi.encodeCall(
+        //         TokenERC20.initialize,
+        //         (signer, NAME, SYMBOL, CONTRACT_URI, forwarders(), saleRecipient, platformFeeRecipient, platformFeeBps)
+        //     )
+        // );
+        // deployContractProxy(
+        //     "TokenERC721",
+        //     abi.encodeCall(
+        //         TokenERC721.initialize,
+        //         (
+        //             signer,
+        //             NAME,
+        //             SYMBOL,
+        //             CONTRACT_URI,
+        //             forwarders(),
+        //             saleRecipient,
+        //             royaltyRecipient,
+        //             royaltyBps,
+        //             platformFeeBps,
+        //             platformFeeRecipient
+        //         )
+        //     )
+        // );
+        // deployContractProxy(
+        //     "TokenERC1155",
+        //     abi.encodeCall(
+        //         TokenERC1155.initialize,
+        //         (
+        //             signer,
+        //             NAME,
+        //             SYMBOL,
+        //             CONTRACT_URI,
+        //             forwarders(),
+        //             saleRecipient,
+        //             royaltyRecipient,
+        //             royaltyBps,
+        //             platformFeeBps,
+        //             platformFeeRecipient
+        //         )
+        //     )
+        // );
+ 
+        // deployContractProxy(
+        //     "Marketplace",
+        //     abi.encodeCall(
+        //         Marketplace.initialize,
+        //         (deployer, CONTRACT_URI, forwarders(), platformFeeRecipient, platformFeeBps)
+        //     )
+        // );
+        // deployContractProxy(
+        //     "Multiwrap",
+        //     abi.encodeCall(
+        //         Multiwrap.initialize,
+        //         (deployer, NAME, SYMBOL, CONTRACT_URI, forwarders(), royaltyRecipient, royaltyBps)
+        //     )
+        // );
+        // deployContractProxy(
+        //     "Pack",
+        //     abi.encodeCall(
+        //         Pack.initialize,
+        //         (deployer, NAME, SYMBOL, CONTRACT_URI, forwarders(), royaltyRecipient, royaltyBps)
+        //     )
+        // );
+
+        // deployContractProxy(
+        //     "PackVRFDirect",
+        //     abi.encodeCall(
+        //         PackVRFDirect.initialize,
+        //         (deployer, NAME, SYMBOL, CONTRACT_URI, forwarders(), royaltyRecipient, royaltyBps)
+        //     )
+        // );
+    }
+
+    function deployContractProxy(
+        string memory _contractType,
+        bytes memory _initializer
+    ) public returns (address proxyAddress) {
+        vm.startPrank(deployer);
+        proxyAddress = TWFactory(factory).deployProxy(bytes32(bytes(_contractType)), _initializer);
+        contracts[bytes32(bytes(_contractType))] = proxyAddress;
+        vm.stopPrank();
+    }
+
+    function getContract(string memory _name) public view returns (address) {
+        return contracts[bytes32(bytes(_name))];
+    }
+
+    function getActor(uint160 _index) public pure returns (address) {
+        return address(uint160(0x50000 + _index));
+    }
+
+    function getWallet() public returns (Wallet wallet) {
+        wallet = new Wallet();
+    }
+
+    function assertIsOwnerERC721(address _token, address _owner, uint256[] memory _tokenIds) internal {
+        for (uint256 i = 0; i < _tokenIds.length; i += 1) {
+            bool isOwnerOfToken = MockERC721(_token).ownerOf(_tokenIds[i]) == _owner;
+            assertTrue(isOwnerOfToken);
+        }
+    }
+
+    function assertIsNotOwnerERC721(address _token, address _owner, uint256[] memory _tokenIds) internal {
+        for (uint256 i = 0; i < _tokenIds.length; i += 1) {
+            bool isOwnerOfToken = MockERC721(_token).ownerOf(_tokenIds[i]) == _owner;
+            assertTrue(!isOwnerOfToken);
+        }
+    }
+
+    function assertBalERC1155Eq(
+        address _token,
+        address _owner,
+        uint256[] memory _tokenIds,
+        uint256[] memory _amounts
+    ) internal {
+        require(_tokenIds.length == _amounts.length, "unequal lengths");
+
+        for (uint256 i = 0; i < _tokenIds.length; i += 1) {
+            assertEq(MockERC1155(_token).balanceOf(_owner, _tokenIds[i]), _amounts[i]);
+        }
+    }
+
+    function assertBalERC1155Gte(
+        address _token,
+        address _owner,
+        uint256[] memory _tokenIds,
+        uint256[] memory _amounts
+    ) internal {
+        require(_tokenIds.length == _amounts.length, "unequal lengths");
+
+        for (uint256 i = 0; i < _tokenIds.length; i += 1) {
+            assertTrue(MockERC1155(_token).balanceOf(_owner, _tokenIds[i]) >= _amounts[i]);
+        }
+    }
+
+    function assertBalERC20Eq(address _token, address _owner, uint256 _amount) internal {
+        assertEq(MockERC20(_token).balanceOf(_owner), _amount);
+    }
+
+    function assertBalERC20Gte(address _token, address _owner, uint256 _amount) internal {
+        assertTrue(MockERC20(_token).balanceOf(_owner) >= _amount);
+    }
+
+    function forwarders() public view returns (address[] memory) {
+        address[] memory _forwarders = new address[](1);
+        _forwarders[0] = forwarder;
+        return _forwarders;
+    }
+
+
+}
